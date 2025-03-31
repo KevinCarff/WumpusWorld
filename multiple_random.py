@@ -4,7 +4,7 @@ import os
 import random
 import sys
 from wumpus_world import WumpusWorld
-from agents import CNFAgent
+from agents import RandomWalkAgent
 
 # If display is enabled, we import and use pygame.
 try:
@@ -59,7 +59,7 @@ def run_game(tile_size=50, fps=2, max_steps=200, debug=False, load_file=None, di
         print(f"Loaded world from {load_file}")
     else:
         world = WumpusWorld(size=8, num_pits=3)
-    agent = CNFAgent(world, debug=debug)
+    agent = RandomWalkAgent(world)
     
     if display and pygame:
         pygame.init()

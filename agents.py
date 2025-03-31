@@ -70,22 +70,36 @@ class CNFAgent(Agent):
             unknown = []
 
             for n in neighbors:
-                if n in self.visited:  # Definitely no pit
+                if n in self.visited:
                     known_safe.append(n)
                 else:
                     unknown.append(n)
 
+            # Direct deduction: 3 known safe, 1 unknown
             if len(unknown) == 1 and len(known_safe) == len(neighbors) - 1:
                 must_be_pit = unknown[0]
                 clause = [self.pit_var(must_be_pit)]
-                self.cnf.append(clause)
-                self.solver.add_clause(clause)
-                if self.debug:
-                    print(f"Inferred pit at {must_be_pit} due to breeze at {cell} and 3 safe neighbors.")
+                if clause not in self.cnf:
+                    self.cnf.append(clause)
+                    self.solver.add_clause(clause)
+                    # if self.debug:
+                    #     print(f"Inferred pit at {must_be_pit} due to breeze at {cell} and 3 safe neighbors.")
+            else:
+                # SAT-based backup: all neighbors except one are UNSAT with pit assumption
+                possible_pits = []
+                for n in neighbors:
+                    if self.solver.solve(assumptions=[self.pit_var(n)]):
+                        possible_pits.append(n)
+                if len(possible_pits) == 1:
+                    must_be_pit = possible_pits[0]
+                    clause = [self.pit_var(must_be_pit)]
+                    if clause not in self.cnf:
+                        self.cnf.append(clause)
+                        self.solver.add_clause(clause)
+                        # if self.debug:
+                        #     print(f"Inferred pit at {must_be_pit} via SAT deduction from breeze at {cell}.")
 
 
-
-    
     def deduce_wumpus_from_stench_constraint(self):
         for cell in self.visited:
             percept = self.world.get_percepts(cell)
@@ -97,18 +111,35 @@ class CNFAgent(Agent):
             unknown = []
 
             for n in neighbors:
-                if n in self.visited:  # Definitely no Wumpus
+                if n in self.visited:
                     known_safe.append(n)
                 else:
                     unknown.append(n)
 
+            # Direct deduction: 3 known safe, 1 unknown
             if len(unknown) == 1 and len(known_safe) == len(neighbors) - 1:
                 must_be_wumpus = unknown[0]
                 clause = [self.wumpus_var(must_be_wumpus)]
-                self.cnf.append(clause)
-                self.solver.add_clause(clause)
-                if self.debug:
-                    print(f"Inferred Wumpus at {must_be_wumpus} due to stench at {cell} and 3 safe neighbors.")
+                if clause not in self.cnf:
+                    self.cnf.append(clause)
+                    self.solver.add_clause(clause)
+                    # if self.debug:
+                    #     print(f"Inferred Wumpus at {must_be_wumpus} due to stench at {cell} and 3 safe neighbors.")
+            else:
+                # SAT-based backup: all neighbors except one are UNSAT with wumpus assumption
+                possible_wumpus = []
+                for n in neighbors:
+                    if self.solver.solve(assumptions=[self.wumpus_var(n)]):
+                        possible_wumpus.append(n)
+                if len(possible_wumpus) == 1:
+                    must_be_wumpus = possible_wumpus[0]
+                    clause = [self.wumpus_var(must_be_wumpus)]
+                    if clause not in self.cnf:
+                        self.cnf.append(clause)
+                        self.solver.add_clause(clause)
+                        # if self.debug:
+                        #     print(f"Inferred Wumpus at {must_be_wumpus} via SAT deduction from stench at {cell}.")
+
 
     def infer_pit_by_exclusion(self):
         for i in range(self.world_size):
@@ -126,8 +157,8 @@ class CNFAgent(Agent):
                     clause = [self.pit_var(must_be_pit)]
                     self.cnf.append(clause)
                     self.solver.add_clause(clause)
-                    if self.debug:
-                        print(f"Inferred pit at {must_be_pit} due to 3 surrounding breezes.")
+                    # if self.debug:
+                    #     print(f"Inferred pit at {must_be_pit} due to 3 surrounding breezes.")
 
     def add_exactly_one_wumpus_constraint(self):
         all_cells = [(i, j) for i in range(self.world_size) for j in range(self.world_size)]
@@ -144,8 +175,8 @@ class CNFAgent(Agent):
                 self.cnf.append(clause)
                 self.solver.add_clause(clause)
 
-        if self.debug:
-            print("Added exactly-one Wumpus constraint.")
+        # if self.debug:
+        #     print("Added exactly-one Wumpus constraint.")
         
     def pit_var(self, cell):
         i, j = cell
@@ -159,40 +190,40 @@ class CNFAgent(Agent):
     def update_cnf_for_cell(self, pos):
         percept = self.world.get_percepts(pos)
         self.visited.add(pos)
-        if self.debug:
-            print(f"update_cnf_for_cell: at {pos} with percepts {percept}")
+        # if self.debug:
+        #     print(f"update_cnf_for_cell: at {pos} with percepts {percept}")
         for neighbor in self.get_neighbors(pos):
             # Pits:
             if not percept.get('breeze', False):
                 clause = [-self.pit_var(neighbor)]
                 self.cnf.append(clause)
                 self.solver.add_clause(clause)
-                if self.debug:
-                    print(f"Added clause (no pit at {neighbor}): {clause}")
+                # if self.debug:
+                #     print(f"Added clause (no pit at {neighbor}): {clause}")
             else:
                 clause = [self.pit_var(n) for n in self.get_neighbors(pos)]
                 self.cnf.append(clause)
                 self.solver.add_clause(clause)
-                if self.debug:
-                    print(f"Added clause (breeze at {pos}): {clause}")
+                # if self.debug:
+                #     print(f"Added clause (breeze at {pos}): {clause}")
             # Wumpus:
             if not percept.get('stench', False):
                 clause = [-self.wumpus_var(neighbor)]
                 self.cnf.append(clause)
                 self.solver.add_clause(clause)
-                if self.debug:
-                    print(f"Added clause (no Wumpus at {neighbor}): {clause}")
+                # if self.debug:
+                #     print(f"Added clause (no Wumpus at {neighbor}): {clause}")
             else:
                 clause = [self.wumpus_var(n) for n in self.get_neighbors(pos)]
                 self.cnf.append(clause)
                 self.solver.add_clause(clause)
-                if self.debug:
-                    print(f"Added clause (stench at {pos}): {clause}")
+                # if self.debug:
+                #     print(f"Added clause (stench at {pos}): {clause}")
         if percept.get("glitter", False):
             self.has_gold = True
             self.goal = self.start
-            if self.debug:
-                print("Gold detected! Setting goal to return home.")
+            # if self.debug:
+            #     print("Gold detected! Setting goal to return home.")
 
     # --- CNF-Based Safety Inference ---
     def is_cell_safe(self, cell):
@@ -250,14 +281,14 @@ class CNFAgent(Agent):
         best_path = []
         best_candidate = current_pos
         orderedSafeMap = sorted(self.safe_map, key=lambda n: manhattan_distance(n, current_pos))
-        if self.debug:
-            print(f"find_closest_safe_path: safe map = {orderedSafeMap}")
+        # if self.debug:
+        #     print(f"find_closest_safe_path: safe map = {orderedSafeMap}")
         for candidate in orderedSafeMap:
-            print("Looking for an alternative path")
+            # print("Looking for an alternative path")
             path = self.find_safe_path(current_pos, candidate)
             if path is None:
-                if self.debug:
-                    print("Looking for an alternative path")
+                # if self.debug:
+                #     print("Looking for an alternative path")
                 continue
             else:
                 best_path = path
@@ -267,11 +298,11 @@ class CNFAgent(Agent):
             #     print(f"Candidate {candidate}: path = {path} | length = {len(path)}")
             # candidates.append((candidate, path, len(path)))
         if best_candidate == current_pos:
-            if self.debug:
-                print("find_closest_safe_path: no valid candidate found")
+            # if self.debug:
+            #     print("find_closest_safe_path: no valid candidate found")
             return None, None
-        if self.debug:
-            print(f"find_closest_safe_path: Best candidate: {best_candidate} with path: {best_path}, length: {manhattan_distance(best_candidate, current_pos)}")
+        # if self.debug:
+        #     print(f"find_closest_safe_path: Best candidate: {best_candidate} with path: {best_path}, length: {manhattan_distance(best_candidate, current_pos)}")
         return best_candidate, best_path
 
 
@@ -313,26 +344,33 @@ class CNFAgent(Agent):
                     path.append(cur)
                     cur = came_from[cur]
                 path.reverse()
-                if self.debug:
-                    print(f"find_safe_path: path found {path}")
+                # if self.debug:
+                #     print(f"find_safe_path: path found {path}")
                 return path
 
             neighbors = sorted(self.get_neighbors(cur), key=lambda n: manhattan_distance(n, target))
+            # if (neighbors):
+            #     for myN in neighbors:
+                    # print(f"neighbors: {myN}")
             for n in neighbors:
                 if n in came_from:
                     continue  # already visited in BFS
 
+                # print(f"neighbors1: {n}")
+                
                 pit_status, wumpus_status = self.infer_hazards(n)
-                if pit_status != "NoH" or wumpus_status != "NoW":
+                if (pit_status != "NoH" or wumpus_status != "NoW") and n not in self.visited:
                     continue  # skip confirmed hazards
 
+                # print(f"neighbors2: {n}")
+                
                 # ✅ Allow all known safe cells, whether visited or not
-                if self.is_cell_safe(n):
+                if self.is_cell_safe(n) or n in self.visited:
                     came_from[n] = cur
                     queue.append(n)
 
-        if self.debug:
-            print(f"find_safe_path: no path from {start} to {target}")
+        # if self.debug:
+        #     print(f"find_safe_path: no path from {start} to {target}")
         return None
 
     def find_safe_path_to_risky(self, start, target):
@@ -348,8 +386,8 @@ class CNFAgent(Agent):
                     path.append(cur)
                     cur = came_from[cur]
                 path.reverse()
-                if self.debug:
-                    print(f"find_safe_path: path found {path}")
+                # if self.debug:
+                #     print(f"find_safe_path: path found {path}")
                 return path
 
             neighbors = sorted(self.get_neighbors(cur), key=lambda n: manhattan_distance(n, target))
@@ -366,8 +404,8 @@ class CNFAgent(Agent):
                     came_from[n] = cur
                     queue.append(n)
 
-        if self.debug:
-            print(f"find_safe_path: no path from {start} to {target}")
+        # if self.debug:
+        #     print(f"find_safe_path: no path from {start} to {target}")
         return None
 
     # ============================================
@@ -381,8 +419,8 @@ class CNFAgent(Agent):
         
         self.deduce_pit_from_breeze_constraint()
         self.deduce_wumpus_from_stench_constraint()
-        if self.debug:
-            print(f"CNF now has {len(self.cnf)} clauses after update at {current_pos}.")
+        # if self.debug:
+        #     print(f"CNF now has {len(self.cnf)} clauses after update at {current_pos}.")
 
         # 2. Refresh safe_map: add neighbors of visited cells that are safe.
         self.safe_map.clear()
@@ -435,8 +473,8 @@ class CNFAgent(Agent):
             self.current_path = path
             self.current_target = candidate
             move_type = "safe (closest candidate from safe map)"
-            print(f"Move type: {move_type}")
-            print(f"Chosen path: {path} | Next move: {path[1]}")
+            # print(f"Move type: {move_type}")
+            # print(f"Chosen path: {path} | Next move: {path[1]}")
             return self.direction_from_to(current_pos, path[1])
 
 
@@ -459,7 +497,7 @@ class CNFAgent(Agent):
                     self.current_path = path
                     self.current_target = target
                     move_type = "risky"
-                    print(f"Move type: {move_type}")
+                    # print(f"Move type: {move_type}")
                     return self.direction_from_to(current_pos, path[1])
                 risky_candidates.remove(min(risky_candidates, key=lambda t: t[1]))
 
@@ -470,12 +508,12 @@ class CNFAgent(Agent):
             self.current_path = [current_pos, best]
             self.current_target = best
             move_type = "random fallback"
-            print(f"Move type: {move_type}")
+            # print(f"Move type: {move_type}")
             return self.direction_from_to(current_pos, best)
 
         # 8. Ultimate fallback: Random move.
         move_type = "ultimate random"
-        print(f"Move type: {move_type}")
+        # print(f"Move type: {move_type}")
         return random.choice(['up', 'down', 'left', 'right'])
 
     # ============================================
@@ -511,6 +549,10 @@ class CNFAgent(Agent):
 
     def display_world_view(self):
         view = self.construct_world_view()
-        print("Agent's World View (based on CNF and risk estimates):")
-        for row in view:
-            print(" | ".join(row))
+        # print("Agent's World View (based on CNF and risk estimates):")
+        # for row in view:
+            # print(" | ".join(row))
+
+class RandomWalkAgent(Agent):
+    def choose_action(self):
+        return random.choice(['up', 'down', 'left', 'right'])
