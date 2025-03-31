@@ -114,16 +114,6 @@ For Windows users, batch files (`run.bat`, `time_CNF.bat`, `time_Random.bat`) ar
 - The world is re-generated until a winnable configuration (a safe path from the start to the gold) is produced.
 - The code is structured to facilitate further modifications or enhancements, such as different world sizes or additional hazard types.
 
-## License
-
-[Specify your license here, e.g., MIT License]
-
-## Contact
-
-For questions or suggestions, please contact [Your Name] at [Your Email Address].
-
----
-
 Enjoy exploring the Wumpus World and experimenting with AI-based reasoning!
 ``` 
 
