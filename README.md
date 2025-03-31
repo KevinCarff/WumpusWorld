@@ -1,5 +1,3 @@
-Below is the complete README.md content. Simply copy the text below into a file named `README.md`:
-
 ```markdown
 # Wumpus World Simulation with CNF and Random Walk Agents
 
